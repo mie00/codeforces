@@ -19,13 +19,29 @@ import (
 const escape rune = 27
 const esc string = string(escape)
 
-var languages = map[string]string{
-	"go":         "go build -o main && ./main",
+var build = map[string]string{
+	"go":     "go build -o main",
+	"python": "python -m py_compile main.py",
+	"c":      "gcc main.c -o main -Wall",
+	"c++":    "g++ main.cpp -Wall -o main",
+}
+
+var run = map[string]string{
+	"go":         "./main",
 	"python":     "python main.py",
 	"javascript": "node index.js",
-	"c":          "gcc main.c -o main -Wall && ./main",
-	"c++":        "g++ main.cpp -Wall -o main && ./main",
-	"cpp":        "g++ main.cpp -Wall -o main && ./main",
+	"c":          "./main",
+	"c++":        "./main",
+}
+
+var languages = map[string]string{
+	"go":         "go",
+	"python":     "python",
+	"javascript": "javascript",
+	"node":       "javascript",
+	"c":          "c",
+	"c++":        "c++",
+	"cpp":        "c++",
 }
 
 func normalizeName(name string) (string, error) {
@@ -48,22 +64,24 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure]
   codeforces examples <name> [--force-download]
   codeforces list-langs
   codeforces -h | --help
   codeforces --version
 
 Options:
-  -h --help              Show this screen.
-  --version              Show version.
-  --match-first-line     Only match output first line [default: false].
-  --lang=<lang>          Source code language use "codeforces list-langs" to list languages [default: go].
-  --cmd=<cmd>            Command to execute the program, overrides lang [default: ].
-  --stdin                Get input from stdin [default: false].
-  --timeout=<timeout>    Timeout for a single case [default: 1s].
-  --force-download       Force download examples [default: false]
-  --exit-on-failure      Exit on the first failed example [default: false].
+  -h --help                                            Show this screen.
+  --version                                            Show version.
+  --match-first-line                                   Only match output first line [default: false].
+  --lang=<lang>                                        Source code language use "codeforces list-langs" to list languages [default: go].
+  --build-cmd=<cmd>                                    Command to execute the program, overrides lang [default: ].
+  --cmd=<cmd>                                          Command to execute the program, overrides lang [default: ].
+  --stdin                                              Get input from stdin [default: false].
+  --timeout=<timeout>                                  Timeout for a single case [default: 1s].
+  --build-timeout=<timeout>                            Timeout for build [default: 10s].
+  --force-download                                     Force download examples [default: false]
+  --exit-on-failure                                    Exit on the first failed example [default: false].
 `
 
 	arguments, err := docopt.ParseDoc(usage)
@@ -100,7 +118,11 @@ Options:
 	if err != nil {
 		panic(err)
 	}
-	cmd, err := arguments.String("--cmd")
+	runCmd, err := arguments.String("--cmd")
+	if err != nil {
+		panic(err)
+	}
+	buildCmd, err := arguments.String("--build-cmd")
 	if err != nil {
 		panic(err)
 	}
@@ -108,12 +130,22 @@ Options:
 	if err != nil {
 		panic(err)
 	}
-	langCmd, ok := languages[lang]
+	lang, ok := languages[lang]
 	if !ok {
 		panic(fmt.Errorf("unknown language %s", lang))
 	}
-	if cmd == "" {
-		cmd = langCmd
+	langRunCmd, ok := run[lang]
+	if !ok {
+		panic(fmt.Errorf("unknown language run %s", lang))
+	}
+	if runCmd == "" {
+		runCmd = langRunCmd
+	}
+	langBuildCmd, ok := build[lang]
+	if ok {
+		if buildCmd == "" {
+			buildCmd = langBuildCmd
+		}
 	}
 	stdin, err := arguments.Bool("--stdin")
 	if err != nil {
@@ -124,6 +156,14 @@ Options:
 		panic(err)
 	}
 	timeout, err := time.ParseDuration(timeoutString)
+	if err != nil {
+		panic(err)
+	}
+	buildTimeoutString, err := arguments.String("--build-timeout")
+	if err != nil {
+		panic(err)
+	}
+	buildTimeout, err := time.ParseDuration(buildTimeoutString)
 	if err != nil {
 		panic(err)
 	}
@@ -195,11 +235,43 @@ Options:
 		fmt.Println(examples.String())
 		return
 	}
+	if buildCmd != "" {
+		stdout := bytes.Buffer{}
+		stderr := bytes.Buffer{}
+		ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
+		cmd := exec.CommandContext(ctx, "bash", "-c", buildCmd)
+		cmd.Dir = name
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		start := time.Now()
+		err := cmd.Run()
+		took := time.Now().Sub(start)
+		cancel()
+		if err == nil && cmd.ProcessState.Success() {
+			fmt.Printf(esc + "[32m")
+			fmt.Printf("build succeeded. took: %s\n", took)
+			fmt.Printf(esc + "[0m")
+		} else {
+			fmt.Printf(esc + "[4;31m")
+			fmt.Printf("build failed. took: %s\n", took)
+			fmt.Printf(esc + "[0m")
+			fmt.Printf(esc + "[35m")
+			fmt.Printf(stdout.String())
+			fmt.Printf(esc + "[0m")
+			fmt.Printf(esc + "[31m")
+			fmt.Printf(stderr.String())
+			fmt.Printf(esc + "[0m")
+			if err != nil {
+				fmt.Println(err)
+			}
+			return
+		}
+	}
 	for i, el := range examples {
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		cmd := exec.CommandContext(ctx, "bash", "-c", cmd)
+		cmd := exec.CommandContext(ctx, "bash", "-c", runCmd)
 		cmd.Dir = name
 		cmd.Stdin = strings.NewReader(el.Input)
 		cmd.Stdout = &stdout
@@ -208,7 +280,8 @@ Options:
 		err := cmd.Run()
 		took := time.Now().Sub(start)
 		cancel()
-		if err == nil && ((firstLine && strings.Split(stdout.String(), "\n")[0] == strings.Split(el.Output, "\n")[0]) || stdout.String() == el.Output) {
+		if err == nil && cmd.ProcessState.Success() &&
+			((firstLine && strings.Split(stdout.String(), "\n")[0] == strings.Split(el.Output, "\n")[0]) || stdout.String() == el.Output) {
 			fmt.Printf(esc + "[32m")
 			fmt.Printf("case %d completed successfully. took: %s\n", i, took)
 			fmt.Printf(esc + "[0m")
