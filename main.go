@@ -304,11 +304,11 @@ Options:
 		}
 		if !failed {
 			fmt.Printf(esc + "[32m")
-			fmt.Printf("case %d completed successfully. took: %s\n", i, took)
+			fmt.Printf("case %d completed successfully. took: %s\n", i+1, took)
 			fmt.Printf(esc + "[0m")
 		} else {
 			fmt.Printf(esc + "[4;31m")
-			fmt.Printf("case %d failed. took: %s\n", i, took)
+			fmt.Printf("case %d failed. took: %s\n", i+1, took)
 			fmt.Printf(esc + "[0m")
 			fmt.Printf(esc + "[1;31m")
 			if err != nil {
