@@ -62,22 +62,21 @@ func main() {
 	res := -1
 	res1 := make([]int, n)
 	res2 := make([]int, n)
-	permutations(arr1, func(e1 []int) {
-		permutations(arr2, func(e2 []int) {
-			sum := 0
-			for i := 0; i < len(e1); i++ {
-				if e1[i] < e2[i] {
-					sum += e2[i]
-				} else {
-					sum += e1[i]
-				}
+	e1 := arr1
+	permutations(arr2, func(e2 []int) {
+		sum := 0
+		for i := 0; i < len(e1); i++ {
+			if e1[i] < e2[i] {
+				sum += e2[i]
+			} else {
+				sum += e1[i]
 			}
-			if sum > res && sum <= k {
-				res = sum
-				copy(res1, e1)
-				copy(res2, e2)
-			}
-		})
+		}
+		if sum > res && sum <= k {
+			res = sum
+			copy(res1, e1)
+			copy(res2, e2)
+		}
 	})
 	fmt.Println(res)
 	if res != -1 {
