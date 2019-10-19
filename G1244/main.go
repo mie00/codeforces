@@ -6,32 +6,38 @@ import (
 	"strings"
 )
 
-func permutations(a []int, fn func([]int)) {
+func permutations(a []int, fn func([]int) bool) {
 	if len(a) == 0 {
 		return
 	}
 	generate(len(a), a, fn)
 }
 
-func permutationsClose(a []int, fn func([]int), done func()) {
+func permutationsClose(a []int, fn func([]int) bool, done func()) {
 	permutations(a, fn)
 	done()
 }
 
-func generate(k int, a []int, fn func([]int)) {
+func generate(k int, a []int, fn func([]int) bool) bool {
 	if k == 1 {
-		fn(a)
-		return
+		return fn(a)
 	}
-	generate(k-1, a, fn)
+	done := generate(k-1, a, fn)
+	if done {
+		return true
+	}
 	for i := 0; i < k-1; i++ {
 		if k%2 == 0 {
 			a[i], a[k-1] = a[k-1], a[i]
 		} else {
 			a[0], a[k-1] = a[k-1], a[0]
 		}
-		generate(k-1, a, fn)
+		done = generate(k-1, a, fn)
+		if done {
+			return true
+		}
 	}
+	return false
 }
 
 func intToStrArr(inp []int) []string {
@@ -59,11 +65,25 @@ func main() {
 		arr1[i] = i + 1
 		arr2[i] = i + 1
 	}
+	min := n * (n + 1) / 2
+	var max int
+	if n%2 == 0 {
+		max = (3*n + 2) * n / 4
+	} else {
+		max = (3*n - 1) * (n + 1) / 4
+	}
+	if k < min {
+		fmt.Println("-1")
+		return
+	}
+	if k > max {
+		k = max
+	}
 	res := -1
 	res1 := make([]int, n)
 	res2 := make([]int, n)
 	e1 := arr1
-	permutations(arr2, func(e2 []int) {
+	permutations(arr2, func(e2 []int) bool {
 		sum := 0
 		for i := 0; i < len(e1); i++ {
 			if e1[i] < e2[i] {
@@ -76,7 +96,11 @@ func main() {
 			res = sum
 			copy(res1, e1)
 			copy(res2, e2)
+			if res == k {
+				return true
+			}
 		}
+		return false
 	})
 	fmt.Println(res)
 	if res != -1 {
