@@ -19,6 +19,15 @@ import (
 const escape rune = 27
 const esc string = string(escape)
 
+var languages = map[string]string{
+	"go":         "go build -o main && ./main",
+	"python":     "python main.py",
+	"javascript": "node index.js",
+	"c":          "gcc main.c -o main -Wall && ./main",
+	"c++":        "g++ main.cpp -Wall -o main && ./main",
+	"cpp":        "g++ main.cpp -Wall -o main && ./main",
+}
+
 func normalizeName(name string) (string, error) {
 	var class string
 	var num int
@@ -39,8 +48,9 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--force-download]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--force-download] [--lang=<lang>]
   codeforces extract <name> [--force-download]
+  codeforces list-langs
   codeforces -h | --help
   codeforces --version
 
@@ -48,16 +58,30 @@ Options:
   -h --help              Show this screen.
   --version              Show version.
   --match-first-line     Only match output first line [default: false].
-  --cmd=<cmd>            Command to execute the program [default: go build -o main && ./main]
+  --lang=<lang>          Source code language use "codeforces list-langs" to list languages [default: go].
+  --cmd=<cmd>            Command to execute the program, overrides lang [default: ].
   --stdin                Get input from stdin [default: false].
   --timeout=<timeout>    Timeout for a single case [default: 1s].
   --force-download       Force download examples [default: false]
 `
 
-	arguments, _ := docopt.ParseDoc(usage)
+	arguments, err := docopt.ParseDoc(usage)
+	if err != nil {
+		panic(err)
+	}
 	extractOnly, err := arguments.Bool("extract")
 	if err != nil {
 		panic(err)
+	}
+	listLangs, err := arguments.Bool("list-langs")
+	if err != nil {
+		panic(err)
+	}
+	if listLangs {
+		for k := range languages {
+			fmt.Println(k)
+		}
+		return
 	}
 	forceDownload, err := arguments.Bool("--force-download")
 	if err != nil {
@@ -78,6 +102,17 @@ Options:
 	cmd, err := arguments.String("--cmd")
 	if err != nil {
 		panic(err)
+	}
+	lang, err := arguments.String("--lang")
+	if err != nil {
+		panic(err)
+	}
+	langCmd, ok := languages[lang]
+	if !ok {
+		panic(fmt.Errorf("unknown language %s", lang))
+	}
+	if cmd == "" {
+		cmd = langCmd
 	}
 	stdin, err := arguments.Bool("--stdin")
 	if err != nil {
