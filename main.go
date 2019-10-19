@@ -196,15 +196,17 @@ Options:
 		cmd.Stdin = strings.NewReader(el.Input)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
+		start := time.Now()
 		err := cmd.Run()
+		took := time.Now().Sub(start)
 		cancel()
 		if err == nil && ((firstLine && strings.Split(stdout.String(), "\n")[0] == strings.Split(el.Output, "\n")[0]) || stdout.String() == el.Output) {
 			fmt.Printf(esc + "[32m")
-			fmt.Printf("case %d completed successfully\n", i)
+			fmt.Printf("case %d completed successfully. took: %s\n", i, took)
 			fmt.Printf(esc + "[0m")
 		} else {
 			fmt.Printf(esc + "[4;31m")
-			fmt.Printf("case %d failed\n", i)
+			fmt.Printf("case %d failed. took: %s\n", i, took)
 			fmt.Printf(esc + "[0m")
 			fmt.Printf(esc + "[1;31m")
 			if err != nil {
