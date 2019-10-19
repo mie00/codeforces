@@ -39,7 +39,8 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces <name> [--match-first-line] [--cmd=<cmd>] [--stdin] [--timeout=<timeout>]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--force-download]
+  codeforces extract <name> [--force-download]
   codeforces -h | --help
   codeforces --version
 
@@ -50,9 +51,18 @@ Options:
   --cmd=<cmd>            Command to execute the program [default: go build -o main && ./main]
   --stdin                Get input from stdin [default: false].
   --timeout=<timeout>    Timeout for a single case [default: 1s].
+  --force-download       Force download examples [default: false]
 `
 
 	arguments, _ := docopt.ParseDoc(usage)
+	extractOnly, err := arguments.Bool("extract")
+	if err != nil {
+		panic(err)
+	}
+	forceDownload, err := arguments.Bool("--force-download")
+	if err != nil {
+		panic(err)
+	}
 	name, err := arguments.String("<name>")
 	if err != nil {
 		panic(err)
@@ -87,14 +97,14 @@ Options:
 	fname := name + "/io.txt"
 	writeInp := false
 	var buf []byte
-	if _, err := os.Stat(fname); err == nil {
+	if _, err := os.Stat(fname); !forceDownload && err == nil {
 		ir, err = os.Open(fname)
 		if err != nil {
 			panic(err)
 		}
-	} else if os.IsNotExist(err) {
+	} else if forceDownload || os.IsNotExist(err) {
 		writeInp = true
-		if stdin {
+		if !forceDownload && stdin {
 			fmt.Fprintln(os.Stderr, "Waiting for stdin test cases...")
 			buf, err = ioutil.ReadAll(os.Stdin)
 			if err != nil {
@@ -129,7 +139,14 @@ Options:
 			panic(err)
 		}
 	}
-
+	if extractOnly {
+		if writeInp {
+			fmt.Println("extract successful and saved")
+		} else {
+			fmt.Println("extract successful and not saved")
+		}
+		return
+	}
 	for i, el := range examples {
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
