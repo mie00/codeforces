@@ -48,7 +48,7 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--force-download] [--lang=<lang>]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure]
   codeforces extract <name> [--force-download]
   codeforces list-langs
   codeforces -h | --help
@@ -63,6 +63,7 @@ Options:
   --stdin                Get input from stdin [default: false].
   --timeout=<timeout>    Timeout for a single case [default: 1s].
   --force-download       Force download examples [default: false]
+  --exit-on-failure      Exit on the first failed example [default: false].
 `
 
 	arguments, err := docopt.ParseDoc(usage)
@@ -123,6 +124,10 @@ Options:
 		panic(err)
 	}
 	timeout, err := time.ParseDuration(timeoutString)
+	if err != nil {
+		panic(err)
+	}
+	exitOnFailure, err := arguments.Bool("--exit-on-failure")
 	if err != nil {
 		panic(err)
 	}
@@ -210,7 +215,9 @@ Options:
 			}
 			fmt.Printf(esc + "[0m")
 			fmt.Println("input")
+			fmt.Printf(esc + "[35m")
 			fmt.Println(el.Input)
+			fmt.Printf(esc + "[0m")
 			fmt.Println("expected")
 			fmt.Printf(esc + "[34m")
 			fmt.Println(el.Output)
@@ -219,6 +226,9 @@ Options:
 			fmt.Printf(esc + "[31m")
 			fmt.Println(stdout.String())
 			fmt.Printf(esc + "[0m")
+			if exitOnFailure {
+				return
+			}
 		}
 	}
 }
