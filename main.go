@@ -64,7 +64,7 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose]
   codeforces examples <name> [--force-download]
   codeforces list-langs
   codeforces -h | --help
@@ -82,6 +82,7 @@ Options:
   --build-timeout=<timeout>                            Timeout for build [default: 10s].
   --force-download                                     Force download examples [default: false]
   --exit-on-failure                                    Exit on the first failed example [default: false].
+  --verbose                                            Always show input/expected/output [default: false].
 `
 
 	arguments, err := docopt.ParseDoc(usage)
@@ -168,6 +169,10 @@ Options:
 		panic(err)
 	}
 	exitOnFailure, err := arguments.Bool("--exit-on-failure")
+	if err != nil {
+		panic(err)
+	}
+	verbose, err := arguments.Bool("--verbose")
 	if err != nil {
 		panic(err)
 	}
@@ -280,8 +285,24 @@ Options:
 		err := cmd.Run()
 		took := time.Now().Sub(start)
 		cancel()
-		if err == nil && cmd.ProcessState.Success() &&
-			((firstLine && strings.Split(stdout.String(), "\n")[0] == strings.Split(el.Output, "\n")[0]) || stdout.String() == el.Output) {
+		out := strings.TrimSpace(stdout.String())
+		failed := false
+		if err != nil || !cmd.ProcessState.Success() {
+			failed = true
+		} else {
+			oo := strings.Split(out, "\n")
+			ee := strings.Split(el.Output, "\n")
+			for i := range oo {
+				if strings.TrimSpace(oo[i]) != strings.TrimSpace(ee[i]) {
+					failed = true
+					break
+				}
+				if firstLine {
+					break
+				}
+			}
+		}
+		if !failed {
 			fmt.Printf(esc + "[32m")
 			fmt.Printf("case %d completed successfully. took: %s\n", i, took)
 			fmt.Printf(esc + "[0m")
@@ -293,6 +314,8 @@ Options:
 			if err != nil {
 				fmt.Printf("returned error: %s\n", err.Error())
 			}
+		}
+		if failed || verbose {
 			if stderr.Len() != 0 {
 				fmt.Printf(stderr.String())
 			}
@@ -300,11 +323,11 @@ Options:
 			fmt.Println(el.String())
 			fmt.Println("output")
 			fmt.Printf(esc + "[31m")
-			fmt.Println(stdout.String())
+			fmt.Println(out)
 			fmt.Printf(esc + "[0m")
-			if exitOnFailure {
-				return
-			}
+		}
+		if failed && exitOnFailure {
+			return
 		}
 	}
 }

@@ -79,32 +79,28 @@ func main() {
 	if k > max {
 		k = max
 	}
-	res := -1
-	res1 := make([]int, n)
+	fmt.Println(k)
+	printIntArr(arr1)
 	res2 := make([]int, n)
-	e1 := arr1
-	permutations(arr2, func(e2 []int) bool {
-		sum := 0
-		for i := 0; i < len(e1); i++ {
-			if e1[i] < e2[i] {
-				sum += e2[i]
+	diff := k - min
+	mmax := n
+	rem := map[int]int{}
+	for i := 1; i <= n; i++ {
+		if i >= mmax || mmax-i > diff {
+			if nnn, ok := rem[i]; ok {
+				res2[i-1] = nnn
 			} else {
-				sum += e1[i]
+				res2[i-1] = i
 			}
+		} else {
+			res2[i-1] = mmax
+			diff -= mmax - i
+			rem[mmax] = i
+			mmax--
 		}
-		if sum > res && sum <= k {
-			res = sum
-			copy(res1, e1)
-			copy(res2, e2)
-			if res == k {
-				return true
-			}
-		}
-		return false
-	})
-	fmt.Println(res)
-	if res != -1 {
-		printIntArr(res1)
-		printIntArr(res2)
 	}
+	if diff != 0 {
+		panic("Programming error")
+	}
+	printIntArr(res2)
 }
