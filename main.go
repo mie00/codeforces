@@ -49,7 +49,7 @@ func main() {
 
 Usage:
   codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure]
-  codeforces extract <name> [--force-download]
+  codeforces examples <name> [--force-download]
   codeforces list-langs
   codeforces -h | --help
   codeforces --version
@@ -70,7 +70,7 @@ Options:
 	if err != nil {
 		panic(err)
 	}
-	extractOnly, err := arguments.Bool("extract")
+	examplesOnly, err := arguments.Bool("examples")
 	if err != nil {
 		panic(err)
 	}
@@ -136,6 +136,7 @@ Options:
 	var ir io.Reader
 	fname := name + "/io.txt"
 	writeInp := false
+	extracted := false
 	var buf []byte
 	if _, err := os.Stat(fname); !forceDownload && err == nil {
 		ir, err = os.Open(fname)
@@ -157,6 +158,7 @@ Options:
 			if err != nil {
 				panic(err)
 			}
+			extracted = true
 			ir = strings.NewReader(exs)
 		}
 	} else {
@@ -179,12 +181,18 @@ Options:
 			panic(err)
 		}
 	}
-	if extractOnly {
-		if writeInp {
-			fmt.Println("extract successful and saved")
+	if examplesOnly {
+		if extracted {
+			fmt.Println("extract successful")
 		} else {
-			fmt.Println("extract successful and not saved")
+			fmt.Println("not extracted")
 		}
+		if writeInp {
+			fmt.Println("examples saved")
+		} else {
+			fmt.Println("examples not saved")
+		}
+		fmt.Println(examples.String())
 		return
 	}
 	for i, el := range examples {
@@ -216,14 +224,7 @@ Options:
 				fmt.Printf(stderr.String())
 			}
 			fmt.Printf(esc + "[0m")
-			fmt.Println("input")
-			fmt.Printf(esc + "[35m")
-			fmt.Println(el.Input)
-			fmt.Printf(esc + "[0m")
-			fmt.Println("expected")
-			fmt.Printf(esc + "[34m")
-			fmt.Println(el.Output)
-			fmt.Printf(esc + "[0m")
+			fmt.Println(el.String())
 			fmt.Println("output")
 			fmt.Printf(esc + "[31m")
 			fmt.Println(stdout.String())
@@ -233,4 +234,17 @@ Options:
 			}
 		}
 	}
+}
+
+func (e *Example) String() string {
+	return "input\n" + esc + "[35m" + e.Input + "\n" + esc + "[0mexpected\n" + esc + "[34m" + e.Output + esc + "[0m"
+}
+
+func (e *Examples) String() string {
+	s := ""
+	for _, i := range *e {
+		s += i.String()
+		s += "\n"
+	}
+	return s
 }
