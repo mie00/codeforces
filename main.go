@@ -64,7 +64,7 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--strict-ellipsis]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--quite] [--strict-ellipsis] [--only=<n>]
   codeforces examples <name> [--force-download]
   codeforces list-langs
   codeforces -h | --help
@@ -84,7 +84,9 @@ Options:
   --force-download                                     Force download examples [default: false]
   --exit-on-failure                                    Exit on the first failed example [default: false].
   --verbose                                            Always show input/expected/output [default: false].
+  --quite                                              Never show input/expected/output [default: false].
   --strict-ellipsis                                    Treat ellipsis (...) in output as is [default: false].
+  --only=<n>                                           run only a specific test case, 0 means all [default: 0].
 `
 
 	arguments, err := docopt.ParseDoc(usage)
@@ -185,7 +187,15 @@ Options:
 	if err != nil {
 		panic(err)
 	}
+	quite, err := arguments.Bool("--quite")
+	if err != nil {
+		panic(err)
+	}
 	strictEllipsis, err := arguments.Bool("--strict-ellipsis")
+	if err != nil {
+		panic(err)
+	}
+	only, err := arguments.Int("--only")
 	if err != nil {
 		panic(err)
 	}
@@ -296,7 +306,13 @@ Options:
 			return
 		}
 	}
+	if only != 0 && only > len(examples) {
+		panic(fmt.Sprintf("have %d test cases, wanted to run case number %d", len(examples), only))
+	}
 	for i, el := range examples {
+		if only != 0 && only != i+1 {
+			continue
+		}
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -351,12 +367,12 @@ Options:
 			if err != nil {
 				fmt.Printf("returned error: %s\n", err.Error())
 			}
+			fmt.Printf(esc + "[0m")
 		}
-		if failed || verbose {
+		if !quite && (failed || verbose) {
 			if stderr.Len() != 0 {
 				fmt.Printf(stderr.String())
 			}
-			fmt.Printf(esc + "[0m")
 			fmt.Println(el.String())
 			fmt.Println("output")
 			fmt.Printf(esc + "[31m")

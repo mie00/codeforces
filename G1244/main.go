@@ -17,7 +17,10 @@ func len1N(n int) int {
 
 func main() {
 	var n, k int64
-	fmt.Scanf("%d %d", &n, &k)
+	_, err := fmt.Scanf("%d %d", &n, &k)
+	if err != nil {
+		panic(err)
+	}
 	min := n * (n + 1) / 2
 	var max int64
 	if n%2 == 0 {
