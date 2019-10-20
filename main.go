@@ -64,7 +64,7 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose]
   codeforces examples <name> [--force-download]
   codeforces list-langs
   codeforces -h | --help
@@ -77,7 +77,8 @@ Options:
   --lang=<lang>                                        Source code language use "codeforces list-langs" to list languages [default: go].
   --build-cmd=<cmd>                                    Command to execute the program, overrides lang [default: ].
   --cmd=<cmd>                                          Command to execute the program, overrides lang [default: ].
-  --stdin                                              Get input from stdin [default: false].
+  --stdin                                              Get examples from stdin [default: false].
+  --stdin-one                                          Get a single input from stdin. [default: false].
   --timeout=<timeout>                                  Timeout for a single case [default: 1s].
   --build-timeout=<timeout>                            Timeout for build [default: 10s].
   --force-download                                     Force download examples [default: false]
@@ -151,6 +152,13 @@ Options:
 	stdin, err := arguments.Bool("--stdin")
 	if err != nil {
 		panic(err)
+	}
+	stdinOne, err := arguments.Bool("--stdin-one")
+	if err != nil {
+		panic(err)
+	}
+	if stdin && stdinOne {
+		panic("cannot receive --stdin and --stdin-one at the same time")
 	}
 	timeoutString, err := arguments.String("--timeout")
 	if err != nil {
@@ -240,6 +248,19 @@ Options:
 		fmt.Println(examples.String())
 		return
 	}
+
+	if stdinOne {
+		buf, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			panic(err)
+		}
+		examples = append(examples, Example{
+			Input:  string(buf),
+			Output: "",
+			noOut:  true,
+		})
+	}
+
 	if buildCmd != "" {
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
@@ -289,7 +310,7 @@ Options:
 		failed := false
 		if err != nil || !cmd.ProcessState.Success() {
 			failed = true
-		} else {
+		} else if !el.noOut {
 			oo := strings.Split(out, "\n")
 			ee := strings.Split(el.Output, "\n")
 			for i := range oo {
@@ -333,7 +354,11 @@ Options:
 }
 
 func (e *Example) String() string {
-	return "input\n" + esc + "[35m" + e.Input + "\n" + esc + "[0mexpected\n" + esc + "[34m" + e.Output + esc + "[0m"
+	ret := "input\n" + esc + "[35m" + e.Input + esc + "[0m"
+	if !e.noOut {
+		ret += "\nexpected\n" + esc + "[34m" + e.Output + esc + "[0m"
+	}
+	return ret
 }
 
 func (e *Examples) String() string {

@@ -12,6 +12,7 @@ import (
 type Example struct {
 	Input  string `json:"input"`
 	Output string `json:"output"`
+	noOut  bool
 }
 
 type Examples []Example
