@@ -313,13 +313,17 @@ Options:
 		} else if !el.noOut {
 			oo := strings.Split(out, "\n")
 			ee := strings.Split(el.Output, "\n")
-			for i := range oo {
-				if strings.TrimSpace(oo[i]) != strings.TrimSpace(ee[i]) {
-					failed = true
-					break
-				}
-				if firstLine {
-					break
+			if len(oo) != len(ee) {
+				failed = true
+			} else {
+				for i := range oo {
+					if strings.TrimSpace(oo[i]) != strings.TrimSpace(ee[i]) {
+						failed = true
+						break
+					}
+					if firstLine {
+						break
+					}
 				}
 			}
 		}

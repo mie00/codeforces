@@ -60,6 +60,7 @@ func main() {
 			mmax--
 		}
 	}
+	fmt.Printf("%s\n", res)
 	if diff != 0 {
 		panic("Programming error")
 	}
