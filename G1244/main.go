@@ -4,60 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
-
-	"github.com/davecgh/go-spew/spew"
 )
-
-func permutations(a []int, fn func([]int) bool) {
-	if len(a) == 0 {
-		return
-	}
-	generate(len(a), a, fn)
-}
-
-func permutationsClose(a []int, fn func([]int) bool, done func()) {
-	permutations(a, fn)
-	done()
-}
-
-func generate(k int, a []int, fn func([]int) bool) bool {
-	if k == 1 {
-		return fn(a)
-	}
-	done := generate(k-1, a, fn)
-	if done {
-		return true
-	}
-	for i := 0; i < k-1; i++ {
-		if k%2 == 0 {
-			a[i], a[k-1] = a[k-1], a[i]
-		} else {
-			a[0], a[k-1] = a[k-1], a[0]
-		}
-		done = generate(k-1, a, fn)
-		if done {
-			return true
-		}
-	}
-	return false
-}
-
-func intToStrArr(inp []int) []string {
-	res := make([]string, len(inp))
-	for i := 0; i < len(inp); i++ {
-		res[i] = strconv.Itoa(inp[i])
-	}
-	return res
-}
-
-func printStrArr(inp []string) {
-	fmt.Println(strings.Join(inp, " "))
-}
-
-func printIntArr(inp []int) {
-	fmt.Println(strings.Join(intToStrArr(inp), " "))
-}
 
 func len1N(n int) int {
 	if n <= 0 {
@@ -69,10 +16,10 @@ func len1N(n int) int {
 }
 
 func main() {
-	var n, k int
+	var n, k int64
 	fmt.Scanf("%d %d", &n, &k)
 	min := n * (n + 1) / 2
-	var max int
+	var max int64
 	if n%2 == 0 {
 		max = (3*n + 2) * n / 4
 	} else {
@@ -86,25 +33,28 @@ func main() {
 		k = max
 	}
 	fmt.Println(k)
-	res := make([]byte, 0, len1N(n))
-	for i := 1; i <= n; i++ {
-		res = append(res, []byte(fmt.Sprintf("%d ", i))...)
+	res := make([]byte, 0, len1N(int(n)))
+	for i := int64(1); i <= n; i++ {
+		res = strconv.AppendInt(res, i, 10)
+		res = append(res, ' ')
 	}
-	spew.Dump(len(res), len1N(n))
 	fmt.Printf("%s\n", res)
 	res = res[:0]
 	diff := k - min
 	mmax := n
-	rem := map[int]int{}
-	for i := 1; i <= n; i++ {
+	rem := map[int64]int64{}
+	for i := int64(1); i <= n; i++ {
 		if i >= mmax || mmax-i > diff {
 			if nnn, ok := rem[i]; ok {
-				res = append(res, []byte(fmt.Sprintf("%d ", nnn))...)
+				res = strconv.AppendInt(res, nnn, 10)
+				res = append(res, ' ')
 			} else {
-				res = append(res, []byte(fmt.Sprintf("%d ", i))...)
+				res = strconv.AppendInt(res, i, 10)
+				res = append(res, ' ')
 			}
 		} else {
-			res = append(res, []byte(fmt.Sprintf("%d ", mmax))...)
+			res = strconv.AppendInt(res, mmax, 10)
+			res = append(res, ' ')
 			diff -= mmax - i
 			rem[mmax] = i
 			mmax--
