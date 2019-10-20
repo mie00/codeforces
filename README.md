@@ -19,6 +19,16 @@ For usage see below
 ![downloaded tests](./images/img0.png "Example with downloaded test cases")
 ![stdin tests](./images/img1.png "Example with stdin test cases")
 
+## Supported languages
+
+```
+go
+c++
+c
+python
+javascript
+```
+
 ## Usage
 
 ```
