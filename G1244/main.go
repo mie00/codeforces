@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func permutations(a []int, fn func([]int) bool) {
@@ -56,15 +59,18 @@ func printIntArr(inp []int) {
 	fmt.Println(strings.Join(intToStrArr(inp), " "))
 }
 
+func len1N(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	l := int(math.Log10(float64(n)))
+	nn := int(math.Pow10(l) - 1)
+	return len1N(nn) + (n-nn)*(l+2)
+}
+
 func main() {
 	var n, k int
 	fmt.Scanf("%d %d", &n, &k)
-	arr1 := make([]int, n)
-	arr2 := make([]int, n)
-	for i := 0; i < n; i++ {
-		arr1[i] = i + 1
-		arr2[i] = i + 1
-	}
 	min := n * (n + 1) / 2
 	var max int
 	if n%2 == 0 {
@@ -80,20 +86,25 @@ func main() {
 		k = max
 	}
 	fmt.Println(k)
-	printIntArr(arr1)
-	res2 := make([]int, n)
+	res := make([]byte, 0, len1N(n))
+	for i := 1; i <= n; i++ {
+		res = append(res, []byte(fmt.Sprintf("%d ", i))...)
+	}
+	spew.Dump(len(res), len1N(n))
+	fmt.Printf("%s\n", res)
+	res = res[:0]
 	diff := k - min
 	mmax := n
 	rem := map[int]int{}
 	for i := 1; i <= n; i++ {
 		if i >= mmax || mmax-i > diff {
 			if nnn, ok := rem[i]; ok {
-				res2[i-1] = nnn
+				res = append(res, []byte(fmt.Sprintf("%d ", nnn))...)
 			} else {
-				res2[i-1] = i
+				res = append(res, []byte(fmt.Sprintf("%d ", i))...)
 			}
 		} else {
-			res2[i-1] = mmax
+			res = append(res, []byte(fmt.Sprintf("%d ", mmax))...)
 			diff -= mmax - i
 			rem[mmax] = i
 			mmax--
@@ -102,5 +113,4 @@ func main() {
 	if diff != 0 {
 		panic("Programming error")
 	}
-	printIntArr(res2)
 }
