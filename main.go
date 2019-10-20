@@ -95,7 +95,7 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--quite] [--strict-ellipsis] [--only=<n>]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--quite] [--strict-ellipsis] [--only=<n>] [--no-percentage]
   codeforces show <name> [--lang=<lang>] [--filename=<fname>] [--force-download]
   codeforces examples <name> [--force-download]
   codeforces list-langs
@@ -120,6 +120,7 @@ Options:
   --quite                                              Never show input/expected/output [default: false].
   --strict-ellipsis                                    Treat ellipsis (...) in output as is [default: false].
   --only=<n>                                           run only a specific test case, 0 means all [default: 0].
+  --no-percentage                                      Show total time instead of percentage for steps instead of time [default: false].
 `
 
 	arguments, err := docopt.ParseDoc(usage)
@@ -237,6 +238,10 @@ Options:
 		panic(err)
 	}
 	only, err := arguments.Int("--only")
+	if err != nil {
+		panic(err)
+	}
+	noPercentage, err := arguments.Bool("--no-percentage")
 	if err != nil {
 		panic(err)
 	}
@@ -431,18 +436,27 @@ Options:
 			fmt.Printf(esc + "[0m")
 		}
 		if len(signals) > 0 {
+			totalTime := end.Sub(start)
 			prev := start
 			done := false
 			for !done {
 				select {
 				case v := <-signals:
-					fmt.Printf("\t%s", v.time.Sub(prev))
+					if noPercentage {
+						fmt.Printf("\t%s", v.time.Sub(prev))
+					} else {
+						fmt.Printf("\t%02.2f%%", float64(v.time.Sub(prev))/float64(totalTime)*100)
+					}
 					prev = v.time
 				case <-time.After(10 * time.Millisecond):
 					done = true
 				}
 			}
-			fmt.Printf("\t%s", end.Sub(prev))
+			if noPercentage {
+				fmt.Printf("\t%s", end.Sub(prev))
+			} else {
+				fmt.Printf("\t%02.2f%%", float64(end.Sub(prev))/float64(totalTime)*100)
+			}
 		}
 		fmt.Printf("\n")
 		if !quite && (failed || verbose) {
