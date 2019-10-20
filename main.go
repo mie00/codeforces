@@ -64,7 +64,7 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--strict-ellipsis]
   codeforces examples <name> [--force-download]
   codeforces list-langs
   codeforces -h | --help
@@ -84,6 +84,7 @@ Options:
   --force-download                                     Force download examples [default: false]
   --exit-on-failure                                    Exit on the first failed example [default: false].
   --verbose                                            Always show input/expected/output [default: false].
+  --strict-ellipsis                                    Treat ellipsis (...) in output as is [default: false].
 `
 
 	arguments, err := docopt.ParseDoc(usage)
@@ -184,6 +185,10 @@ Options:
 	if err != nil {
 		panic(err)
 	}
+	strictEllipsis, err := arguments.Bool("--strict-ellipsis")
+	if err != nil {
+		panic(err)
+	}
 
 	var examples Examples
 	var ir io.Reader
@@ -191,29 +196,27 @@ Options:
 	writeInp := false
 	extracted := false
 	var buf []byte
-	if _, err := os.Stat(fname); !forceDownload && err == nil {
+	if stdin {
+		fmt.Fprintln(os.Stderr, "Waiting for stdin test cases...")
+		buf, err = ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			panic(err)
+		}
+		ir = bytes.NewReader(buf)
+	} else if _, err := os.Stat(fname); !forceDownload && err == nil {
 		ir, err = os.Open(fname)
 		if err != nil {
 			panic(err)
 		}
 	} else if forceDownload || os.IsNotExist(err) {
 		writeInp = true
-		if !forceDownload && stdin {
-			fmt.Fprintln(os.Stderr, "Waiting for stdin test cases...")
-			buf, err = ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				panic(err)
-			}
-			ir = bytes.NewReader(buf)
-		} else {
-			exs, err := extractString(name)
-			buf = []byte(exs)
-			if err != nil {
-				panic(err)
-			}
-			extracted = true
-			ir = strings.NewReader(exs)
+		exs, err := extractString(name)
+		buf = []byte(exs)
+		if err != nil {
+			panic(err)
 		}
+		extracted = true
+		ir = strings.NewReader(exs)
 	} else {
 		panic(err)
 	}
@@ -313,13 +316,22 @@ Options:
 		} else if !el.noOut {
 			oo := strings.Split(out, "\n")
 			ee := strings.Split(el.Output, "\n")
-			if len(oo) != len(ee) {
+			if len(oo) < len(ee) || (len(oo) != len(ee) && !(!strictEllipsis && strings.HasSuffix(strings.TrimSpace(el.Output), "..."))) {
 				failed = true
 			} else {
 				for i := range oo {
-					if strings.TrimSpace(oo[i]) != strings.TrimSpace(ee[i]) {
-						failed = true
+					if !strictEllipsis && strings.HasSuffix(strings.TrimSpace(ee[i]), "...") {
+						eee := strings.TrimSpace(ee[i])
+						if !strings.HasPrefix(strings.TrimSpace(oo[i]), eee[:len(eee)-3]) {
+							failed = true
+							break
+						}
 						break
+					} else {
+						if strings.TrimSpace(oo[i]) != strings.TrimSpace(ee[i]) {
+							failed = true
+							break
+						}
 					}
 					if firstLine {
 						break

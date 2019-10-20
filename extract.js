@@ -1,13 +1,14 @@
-var st = document.getElementsByClassName("sample-test")[0]
-
 function zip(a, b) {
     return a.map(function(e, i) {
         return { "input": e, "output": b[i] };
     });
 }
-var inp = Array.from(st.getElementsByClassName("input")).map(x => x.getElementsByTagName("pre")[0].innerText.trim())
-var out = Array.from(st.getElementsByClassName("output")).map(x => x.getElementsByTagName("pre")[0].innerText.trim())
-var json = JSON.stringify(zip(inp, out))
+var inp = Array.from(document.getElementsByClassName("input")).map(x => (x.tagName === "PRE" ? x : x.getElementsByTagName("pre")[0]).innerText.trim())
+var out = Array.from(document.getElementsByClassName("answer")).map(x => (x.tagName === "PRE" ? x : x.getElementsByTagName("pre")[0]).innerText.trim())
+if (!out.length) {
+    out = Array.from(document.getElementsByClassName("output")).map(x => (x.tagName === "PRE" ? x : x.getElementsByTagName("pre")[0]).innerText.trim())
+}
+var json = JSON.stringify(zip(inp, out).filter(x => x.input != '?' || x.output != '?'))
 
 function fallbackCopyTextToClipboard(text) {
     var textArea = document.createElement("textarea");
