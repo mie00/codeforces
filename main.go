@@ -367,6 +367,12 @@ Options:
 		if only != 0 && only != i+1 {
 			continue
 		}
+		if !strictEllipsis && strings.HasSuffix(strings.TrimSpace(el.Input), "...") {
+			fmt.Printf(esc + "[37m")
+			fmt.Printf("case %d skipped due to incomplete input.\n", i+1)
+			fmt.Printf(esc + "[0m")
+			continue
+		}
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
