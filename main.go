@@ -9,8 +9,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docopt/docopt-go"
@@ -18,6 +20,14 @@ import (
 
 const escape rune = 27
 const esc string = string(escape)
+
+var file = map[string]string{
+	"go":         "main.go",
+	"python":     "main.py",
+	"javascript": "index.js",
+	"c":          "main.c",
+	"c++":        "main.cpp",
+}
 
 var build = map[string]string{
 	"go":     "go build -o main",
@@ -60,11 +70,33 @@ func normalizeName(name string) (string, error) {
 	return fmt.Sprintf("%s%d", class, num), nil
 }
 
+type signalTimes struct {
+	signal os.Signal
+	time   time.Time
+}
+
+func processSignals() chan signalTimes {
+	c := make(chan os.Signal, 10)
+	ret := make(chan signalTimes, 10)
+	signal.Notify(c, syscall.SIGUSR1, syscall.SIGUSR2)
+	go func() {
+		for s := range c {
+			ret <- signalTimes{
+				signal: s,
+				time:   time.Now(),
+			}
+		}
+	}()
+	return ret
+}
+
 func main() {
+	signals := processSignals()
 	usage := `codeforces test runner.
 
 Usage:
   codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--quite] [--strict-ellipsis] [--only=<n>]
+  codeforces show <name> [--lang=<lang>] [--filename=<fname>] [--force-download]
   codeforces examples <name> [--force-download]
   codeforces list-langs
   codeforces -h | --help
@@ -77,6 +109,7 @@ Options:
   --lang=<lang>                                        Source code language use "codeforces list-langs" to list languages [default: go].
   --build-cmd=<cmd>                                    Command to execute the program, overrides lang [default: ].
   --cmd=<cmd>                                          Command to execute the program, overrides lang [default: ].
+  --filename=<fname>                                   Default file name to show [default: ].
   --stdin                                              Get examples from stdin [default: false].
   --stdin-one                                          Get a single input from stdin. [default: false].
   --timeout=<timeout>                                  Timeout for a single case [default: 1s].
@@ -107,6 +140,10 @@ Options:
 		}
 		return
 	}
+	show, err := arguments.Bool("show")
+	if err != nil {
+		panic(err)
+	}
 	forceDownload, err := arguments.Bool("--force-download")
 	if err != nil {
 		panic(err)
@@ -128,6 +165,10 @@ Options:
 		panic(err)
 	}
 	buildCmd, err := arguments.String("--build-cmd")
+	if err != nil {
+		panic(err)
+	}
+	filename, err := arguments.String("--filename")
 	if err != nil {
 		panic(err)
 	}
@@ -198,6 +239,19 @@ Options:
 	only, err := arguments.Int("--only")
 	if err != nil {
 		panic(err)
+	}
+
+	if show {
+		if filename == "" {
+			if fn, ok := file[lang]; ok {
+				filename = fn
+			}
+		}
+		if filename == "" {
+			panic(fmt.Errorf("cannot find filename for lang %s, please provide one", lang))
+		}
+		printFile(filename, name, lang)
+		return
 	}
 
 	var examples Examples
@@ -323,7 +377,8 @@ Options:
 		cmd.Stderr = &stderr
 		start := time.Now()
 		err := cmd.Run()
-		took := time.Now().Sub(start)
+		end := time.Now()
+		took := end.Sub(start)
 		cancel()
 		out := strings.TrimSpace(stdout.String())
 		failed := false
@@ -357,18 +412,33 @@ Options:
 		}
 		if !failed {
 			fmt.Printf(esc + "[32m")
-			fmt.Printf("case %d completed successfully. took: %s\n", i+1, took)
+			fmt.Printf("case %d completed successfully. took: %s", i+1, took)
 			fmt.Printf(esc + "[0m")
 		} else {
 			fmt.Printf(esc + "[4;31m")
-			fmt.Printf("case %d failed. took: %s\n", i+1, took)
+			fmt.Printf("case %d failed. took: %s", i+1, took)
 			fmt.Printf(esc + "[0m")
 			fmt.Printf(esc + "[1;31m")
 			if err != nil {
-				fmt.Printf("returned error: %s\n", err.Error())
+				fmt.Printf("returned error: %s", err.Error())
 			}
 			fmt.Printf(esc + "[0m")
 		}
+		if len(signals) > 0 {
+			prev := start
+			done := false
+			for !done {
+				select {
+				case v := <-signals:
+					fmt.Printf("\t%s", v.time.Sub(prev))
+					prev = v.time
+				case <-time.After(10 * time.Millisecond):
+					done = true
+				}
+			}
+			fmt.Printf("\t%s", end.Sub(prev))
+		}
+		fmt.Printf("\n")
 		if !quite && (failed || verbose) {
 			if stderr.Len() != 0 {
 				fmt.Printf(stderr.String())
