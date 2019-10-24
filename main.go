@@ -49,14 +49,19 @@ func main() {
 		return
 	}
 	if config.Show {
-		if config.Filename == "" {
-			panic(fmt.Errorf("cannot find filename for lang %s, please provide one", config.Lang))
-		}
 		printFile(config.Filename, config.Name, config.Lang)
 		return
 	}
 
 	examples, err := getExamples(*config)
+
+	if config.New {
+		err = newFile(*config)
+		if err != nil {
+			panic(err)
+		}
+		return
+	}
 
 	if config.Examples {
 		fmt.Println(examples.String())

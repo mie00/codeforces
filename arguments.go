@@ -77,8 +77,10 @@ type Config struct {
 	Only             int
 	NoPercentage     bool
 	NoWindowsNewline bool
-	Show             bool `docopt:"show"`
+	New              bool `docopt:"new"`
+	ForceWrite       bool
 	Filename         string
+	Show             bool   `docopt:"show"`
 	Examples         bool   `docopt:"examples"`
 	ListLangs        bool   `docopt:"list-langs"`
 	Name             string `docopt:"<name>"`
@@ -89,7 +91,8 @@ func arguments() (*Config, error) {
 
 Usage:
   codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--quite] [--strict-ellipsis] [--only=<n>] [--no-percentage] [--no-windows-newline]
-  codeforces show <name> [--lang=<lang>] [--filename=<fname>] [--force-download]
+  codeforces new <name> [--force-write] [--lang=<lang>] [--filename=<fname>] [--force-download]
+  codeforces show <name> [--lang=<lang>] [--filename=<fname>]
   codeforces examples <name> [--force-download]
   codeforces list-langs
   codeforces -h | --help
@@ -115,6 +118,7 @@ Options:
   --only=<n>                                           run only a specific test case, 0 means all [default: 0].
   --no-percentage                                      Show total time instead of percentage for steps instead of time [default: false].
   --no-windows-newline                                 For input do not use windows' newline (\r\n) and use (\n) instead [default: false].
+  --force-write                                        Force overwrite the target file if exists [default: false]
 `
 
 	arguments, err := docopt.ParseDoc(usage)
@@ -165,5 +169,10 @@ Options:
 	if fn, ok := file[lang]; ok && config.Filename == "" {
 		config.Filename = fn
 	}
+
+	if config.Filename == "" && (config.Show || config.New) {
+		panic(fmt.Errorf("cannot find filename for lang %s, please provide one", config.Lang))
+	}
+
 	return &config, nil
 }
