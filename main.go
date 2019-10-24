@@ -10,65 +10,13 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/docopt/docopt-go"
 )
 
 const escape rune = 27
 const esc string = string(escape)
-
-var file = map[string]string{
-	"go":         "main.go",
-	"python":     "main.py",
-	"javascript": "index.js",
-	"c":          "main.c",
-	"c++":        "main.cpp",
-}
-
-var build = map[string]string{
-	"go":     "go build -o main",
-	"python": "python -m py_compile main.py",
-	"c":      "gcc main.c -o main -Wall",
-	"c++":    "g++ main.cpp -Wall -o main",
-}
-
-var run = map[string]string{
-	"go":         "./main",
-	"python":     "python main.py",
-	"javascript": "node index.js",
-	"c":          "./main",
-	"c++":        "./main",
-}
-
-var languages = map[string]string{
-	"go":         "go",
-	"python":     "python",
-	"javascript": "javascript",
-	"node":       "javascript",
-	"c":          "c",
-	"c++":        "c++",
-	"cpp":        "c++",
-}
-
-func normalizeName(name string) (string, error) {
-	var class string
-	var num int
-	var err error
-	if name[len(name)-2] == '/' {
-		_, err = fmt.Sscanf(name, "%d/%s", &num, &class)
-	} else {
-		class = name[0:1]
-		num, err = strconv.Atoi(name[1:])
-		if err != nil {
-			return "", nil
-		}
-	}
-	return fmt.Sprintf("%d-%s", num, class), nil
-}
 
 type signalTimes struct {
 	signal os.Signal
@@ -92,199 +40,50 @@ func processSignals() chan signalTimes {
 
 func main() {
 	signals := processSignals()
-	usage := `codeforces test runner.
-
-Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--quite] [--strict-ellipsis] [--only=<n>] [--no-percentage] [--no-windows-newline]
-  codeforces show <name> [--lang=<lang>] [--filename=<fname>] [--force-download]
-  codeforces examples <name> [--force-download]
-  codeforces list-langs
-  codeforces -h | --help
-  codeforces --version
-
-Options:
-  -h --help                                            Show this screen.
-  --version                                            Show version.
-  --match-first-line                                   Only match output first line [default: false].
-  --lang=<lang>                                        Source code language use "codeforces list-langs" to list languages [default: go].
-  --build-cmd=<cmd>                                    Command to execute the program, overrides lang [default: ].
-  --cmd=<cmd>                                          Command to execute the program, overrides lang [default: ].
-  --filename=<fname>                                   Default file name to show [default: ].
-  --stdin                                              Get examples from stdin [default: false].
-  --stdin-one                                          Get a single input from stdin. [default: false].
-  --timeout=<timeout>                                  Timeout for a single case [default: 1s].
-  --build-timeout=<timeout>                            Timeout for build [default: 10s].
-  --force-download                                     Force download examples [default: false]
-  --exit-on-failure                                    Exit on the first failed example [default: false].
-  --verbose                                            Always show input/expected/output [default: false].
-  --quite                                              Never show input/expected/output [default: false].
-  --strict-ellipsis                                    Treat ellipsis (...) in output as is [default: false].
-  --only=<n>                                           run only a specific test case, 0 means all [default: 0].
-  --no-percentage                                      Show total time instead of percentage for steps instead of time [default: false].
-  --no-windows-newline                                 For input do not use windows' newline (\r\n) and use (\n) instead [default: false].
-`
-
-	arguments, err := docopt.ParseDoc(usage)
+	config, err := arguments()
 	if err != nil {
 		panic(err)
 	}
-	examplesOnly, err := arguments.Bool("examples")
-	if err != nil {
-		panic(err)
-	}
-	listLangs, err := arguments.Bool("list-langs")
-	if err != nil {
-		panic(err)
-	}
-	if listLangs {
+	if config.ListLangs {
 		for k := range languages {
 			fmt.Println(k)
 		}
 		return
 	}
-	show, err := arguments.Bool("show")
-	if err != nil {
-		panic(err)
-	}
-	forceDownload, err := arguments.Bool("--force-download")
-	if err != nil {
-		panic(err)
-	}
-	name, err := arguments.String("<name>")
-	if err != nil {
-		panic(err)
-	}
-	name, err = normalizeName(name)
-	if err != nil {
-		panic(err)
-	}
-	firstLine, err := arguments.Bool("--match-first-line")
-	if err != nil {
-		panic(err)
-	}
-	runCmd, err := arguments.String("--cmd")
-	if err != nil {
-		panic(err)
-	}
-	buildCmd, err := arguments.String("--build-cmd")
-	if err != nil {
-		panic(err)
-	}
-	filename, err := arguments.String("--filename")
-	if err != nil {
-		panic(err)
-	}
-	lang, err := arguments.String("--lang")
-	if err != nil {
-		panic(err)
-	}
-	lang, ok := languages[lang]
-	if !ok {
-		panic(fmt.Errorf("unknown language %s", lang))
-	}
-	langRunCmd, ok := run[lang]
-	if !ok {
-		panic(fmt.Errorf("unknown language run %s", lang))
-	}
-	if runCmd == "" {
-		runCmd = langRunCmd
-	}
-	langBuildCmd, ok := build[lang]
-	if ok {
-		if buildCmd == "" {
-			buildCmd = langBuildCmd
-		}
-	}
-	stdin, err := arguments.Bool("--stdin")
-	if err != nil {
-		panic(err)
-	}
-	stdinOne, err := arguments.Bool("--stdin-one")
-	if err != nil {
-		panic(err)
-	}
-	if stdin && stdinOne {
-		panic("cannot receive --stdin and --stdin-one at the same time")
-	}
-	timeoutString, err := arguments.String("--timeout")
-	if err != nil {
-		panic(err)
-	}
-	timeout, err := time.ParseDuration(timeoutString)
-	if err != nil {
-		panic(err)
-	}
-	buildTimeoutString, err := arguments.String("--build-timeout")
-	if err != nil {
-		panic(err)
-	}
-	buildTimeout, err := time.ParseDuration(buildTimeoutString)
-	if err != nil {
-		panic(err)
-	}
-	exitOnFailure, err := arguments.Bool("--exit-on-failure")
-	if err != nil {
-		panic(err)
-	}
-	verbose, err := arguments.Bool("--verbose")
-	if err != nil {
-		panic(err)
-	}
-	quite, err := arguments.Bool("--quite")
-	if err != nil {
-		panic(err)
-	}
-	strictEllipsis, err := arguments.Bool("--strict-ellipsis")
-	if err != nil {
-		panic(err)
-	}
-	only, err := arguments.Int("--only")
-	if err != nil {
-		panic(err)
-	}
-	noPercentage, err := arguments.Bool("--no-percentage")
-	if err != nil {
-		panic(err)
-	}
-	noWindowsNewline, err := arguments.Bool("--no-windows-newline")
-	if err != nil {
-		panic(err)
-	}
-
-	if show {
-		if filename == "" {
-			if fn, ok := file[lang]; ok {
-				filename = fn
+	if config.Show {
+		if config.Filename == "" {
+			if fn, ok := file[config.Lang]; ok {
+				config.Filename = fn
 			}
 		}
-		if filename == "" {
-			panic(fmt.Errorf("cannot find filename for lang %s, please provide one", lang))
+		if config.Filename == "" {
+			panic(fmt.Errorf("cannot find filename for lang %s, please provide one", config.Lang))
 		}
-		printFile(filename, name, lang)
+		printFile(config.Filename, config.Name, config.Lang)
 		return
 	}
 
 	var examples Examples
 	var ir io.Reader
-	fname := name + "/io.txt"
+	fname := config.Name + "/io.txt"
 	writeInp := false
 	extracted := false
 	var buf []byte
-	if stdin {
+	if config.Stdin {
 		fmt.Fprintln(os.Stderr, "Waiting for stdin test cases...")
 		buf, err = ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			panic(err)
 		}
 		ir = bytes.NewReader(buf)
-	} else if _, err := os.Stat(fname); !forceDownload && err == nil {
+	} else if _, err := os.Stat(fname); !config.ForceDownload && err == nil {
 		ir, err = os.Open(fname)
 		if err != nil {
 			panic(err)
 		}
-	} else if forceDownload || os.IsNotExist(err) {
+	} else if config.ForceDownload || os.IsNotExist(err) {
 		writeInp = true
-		exs, err := extractString(name)
+		exs, err := extractString(config.Name)
 		buf = []byte(exs)
 		if err != nil {
 			panic(err)
@@ -311,7 +110,7 @@ Options:
 			panic(err)
 		}
 	}
-	if examplesOnly {
+	if config.Examples {
 		if extracted {
 			fmt.Println("extract successful")
 		} else {
@@ -326,7 +125,7 @@ Options:
 		return
 	}
 
-	if stdinOne {
+	if config.StdinOne {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			panic(err)
@@ -338,12 +137,12 @@ Options:
 		})
 	}
 
-	if buildCmd != "" {
+	if config.BuildCmd != "" {
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
-		ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
-		cmd := exec.CommandContext(ctx, "bash", "-c", buildCmd)
-		cmd.Dir = name
+		ctx, cancel := context.WithTimeout(context.Background(), config.buildTimeout)
+		cmd := exec.CommandContext(ctx, "bash", "-c", config.BuildCmd)
+		cmd.Dir = config.Name
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		start := time.Now()
@@ -370,14 +169,14 @@ Options:
 			return
 		}
 	}
-	if only != 0 && only > len(examples) {
-		panic(fmt.Sprintf("have %d test cases, wanted to run case number %d", len(examples), only))
+	if config.Only != 0 && config.Only > len(examples) {
+		panic(fmt.Sprintf("have %d test cases, wanted to run case number %d", len(examples), config.Only))
 	}
 	for i, el := range examples {
-		if only != 0 && only != i+1 {
+		if config.Only != 0 && config.Only != i+1 {
 			continue
 		}
-		if !strictEllipsis && strings.HasSuffix(strings.TrimSpace(el.Input), "...") {
+		if !config.StrictEllipsis && strings.HasSuffix(strings.TrimSpace(el.Input), "...") {
 			fmt.Printf(esc + "[37m")
 			fmt.Printf("case %d skipped due to incomplete input.\n", i+1)
 			fmt.Printf(esc + "[0m")
@@ -385,13 +184,13 @@ Options:
 		}
 		stdout := bytes.Buffer{}
 		stderr := bytes.Buffer{}
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		cmd := exec.CommandContext(ctx, "bash", "-c", runCmd)
-		cmd.Dir = name
+		ctx, cancel := context.WithTimeout(context.Background(), config.timeout)
+		cmd := exec.CommandContext(ctx, "bash", "-c", config.Cmd)
+		cmd.Dir = config.Name
 		inp := el.Input
-		if noWindowsNewline && strings.Contains(inp, "\r\n") {
+		if config.NoWindowsNewline && strings.Contains(inp, "\r\n") {
 			inp = strings.Replace(inp, "\r\n", "\n", -1)
-		} else if !noWindowsNewline && !strings.Contains(inp, "\r\n") {
+		} else if !config.NoWindowsNewline && !strings.Contains(inp, "\r\n") {
 			inp = strings.Replace(inp, "\n", "\r\n", -1)
 		}
 		cmd.Stdin = strings.NewReader(inp)
@@ -409,11 +208,11 @@ Options:
 		} else if !el.noOut {
 			oo := strings.Split(out, "\n")
 			ee := strings.Split(el.Output, "\n")
-			if len(oo) < len(ee) || (len(oo) != len(ee) && !(!strictEllipsis && strings.HasSuffix(strings.TrimSpace(el.Output), "..."))) {
+			if len(oo) < len(ee) || (len(oo) != len(ee) && !(!config.StrictEllipsis && strings.HasSuffix(strings.TrimSpace(el.Output), "..."))) {
 				failed = true
 			} else {
 				for i := range oo {
-					if !strictEllipsis && strings.HasSuffix(strings.TrimSpace(ee[i]), "...") {
+					if !config.StrictEllipsis && strings.HasSuffix(strings.TrimSpace(ee[i]), "...") {
 						eee := strings.TrimSpace(ee[i])
 						if !strings.HasPrefix(strings.TrimSpace(oo[i]), eee[:len(eee)-3]) {
 							failed = true
@@ -426,7 +225,7 @@ Options:
 							break
 						}
 					}
-					if firstLine {
+					if config.MatchFirstLine {
 						break
 					}
 				}
@@ -453,7 +252,7 @@ Options:
 			for !done {
 				select {
 				case v := <-signals:
-					if noPercentage {
+					if config.NoPercentage {
 						fmt.Printf("\t%s", v.time.Sub(prev))
 					} else {
 						fmt.Printf("\t%02.2f%%", float64(v.time.Sub(prev))/float64(totalTime)*100)
@@ -463,14 +262,14 @@ Options:
 					done = true
 				}
 			}
-			if noPercentage {
+			if config.NoPercentage {
 				fmt.Printf("\t%s", end.Sub(prev))
 			} else {
 				fmt.Printf("\t%02.2f%%", float64(end.Sub(prev))/float64(totalTime)*100)
 			}
 		}
 		fmt.Printf("\n")
-		if !quite && (failed || verbose) {
+		if !config.Quite && (failed || config.Verbose) {
 			if stderr.Len() != 0 {
 				fmt.Printf(stderr.String())
 			}
@@ -480,7 +279,7 @@ Options:
 			fmt.Println(out)
 			fmt.Printf(esc + "[0m")
 		}
-		if failed && exitOnFailure {
+		if failed && config.ExitOnFailure {
 			return
 		}
 	}
