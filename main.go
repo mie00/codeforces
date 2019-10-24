@@ -67,7 +67,7 @@ func normalizeName(name string) (string, error) {
 			return "", nil
 		}
 	}
-	return fmt.Sprintf("%s%d", class, num), nil
+	return fmt.Sprintf("%d-%s", num, class), nil
 }
 
 type signalTimes struct {
