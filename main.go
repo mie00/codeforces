@@ -95,7 +95,7 @@ func main() {
 	usage := `codeforces test runner.
 
 Usage:
-  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--quite] [--strict-ellipsis] [--only=<n>] [--no-percentage]
+  codeforces run <name> [--match-first-line] [--cmd=<cmd>] [--build-cmd=<cmd>] [--stdin] [--stdin-one] [--timeout=<timeout>] [--build-timeout=<timeout>] [--force-download] [--lang=<lang>] [--exit-on-failure] [--verbose] [--quite] [--strict-ellipsis] [--only=<n>] [--no-percentage] [--no-windows-newline]
   codeforces show <name> [--lang=<lang>] [--filename=<fname>] [--force-download]
   codeforces examples <name> [--force-download]
   codeforces list-langs
@@ -121,6 +121,7 @@ Options:
   --strict-ellipsis                                    Treat ellipsis (...) in output as is [default: false].
   --only=<n>                                           run only a specific test case, 0 means all [default: 0].
   --no-percentage                                      Show total time instead of percentage for steps instead of time [default: false].
+  --no-windows-newline                                 For input do not use windows' newline (\r\n) and use (\n) instead [default: false].
 `
 
 	arguments, err := docopt.ParseDoc(usage)
@@ -242,6 +243,10 @@ Options:
 		panic(err)
 	}
 	noPercentage, err := arguments.Bool("--no-percentage")
+	if err != nil {
+		panic(err)
+	}
+	noWindowsNewline, err := arguments.Bool("--no-windows-newline")
 	if err != nil {
 		panic(err)
 	}
@@ -383,7 +388,13 @@ Options:
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		cmd := exec.CommandContext(ctx, "bash", "-c", runCmd)
 		cmd.Dir = name
-		cmd.Stdin = strings.NewReader(el.Input)
+		inp := el.Input
+		if noWindowsNewline && strings.Contains(inp, "\r\n") {
+			inp = strings.Replace(inp, "\r\n", "\n", -1)
+		} else if !noWindowsNewline && !strings.Contains(inp, "\r\n") {
+			inp = strings.Replace(inp, "\n", "\r\n", -1)
+		}
+		cmd.Stdin = strings.NewReader(inp)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		start := time.Now()
