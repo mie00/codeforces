@@ -22,30 +22,30 @@ func getExamples(config Config) (Examples, error) {
 		fmt.Fprintln(os.Stderr, "Waiting for stdin test cases...")
 		buf, err = ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		ir = bytes.NewReader(buf)
 	} else if _, err := os.Stat(fname); !config.ForceDownload && err == nil {
 		ir, err = os.Open(fname)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	} else if config.ForceDownload || os.IsNotExist(err) {
 		writeInp = true
 		exs, err := extractString(config.Name)
 		buf = []byte(exs)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		extracted = true
 		ir = strings.NewReader(exs)
 	} else {
-		panic(err)
+		return nil, err
 	}
 	dec := json.NewDecoder(ir)
 	err = dec.Decode(&examples)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if writeInp {
 		file, err := os.Create(fname)
@@ -76,7 +76,7 @@ func getExamples(config Config) (Examples, error) {
 	if config.StdinOne {
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		examples = append(examples, Example{
 			Input:  string(buf),
