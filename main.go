@@ -53,7 +53,14 @@ func main() {
 		return
 	}
 
+	if err := os.MkdirAll(config.Name, 0755); err != nil {
+		panic(nil)
+	}
+
 	examples, err := getExamples(*config)
+	if err != nil {
+		panic(err)
+	}
 
 	if config.New {
 		err = newFile(*config)
