@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/fatih/color"
 )
 
 const escape rune = 27
@@ -150,36 +152,26 @@ func main() {
 		took := time.Now().Sub(start)
 		cancel()
 		if err == nil && cmd.ProcessState.Success() {
-			fmt.Printf(esc + "[32m")
-			fmt.Printf("build succeeded. took: %s\n", took)
-			fmt.Printf(esc + "[0m")
+			color.Green("build succeeded. took: %s\n", took)
 		} else {
-			fmt.Printf(esc + "[4;31m")
-			fmt.Printf("build failed. took: %s\n", took)
-			fmt.Printf(esc + "[0m")
-			fmt.Printf(esc + "[35m")
-			fmt.Printf(stdout.String())
-			fmt.Printf(esc + "[0m")
-			fmt.Printf(esc + "[31m")
-			fmt.Printf(stderr.String())
-			fmt.Printf(esc + "[0m")
+			color.Red("build failed. took: %s\n", took)
+			color.Magenta(stdout.String())
+			color.Red(stderr.String())
 			if err != nil {
-				fmt.Println(err)
+				color.RedString(err.Error())
 			}
 			return
 		}
 	}
 	if config.Only != 0 && config.Only > len(examples) {
-		panic(fmt.Sprintf("have %d test cases, wanted to run case number %d", len(examples), config.Only))
+		panic(fmt.Errorf("have %d test cases, wanted to run case number %d", len(examples), config.Only))
 	}
 	for i, el := range examples {
 		if config.Only != 0 && config.Only != i+1 {
 			continue
 		}
 		if !config.StrictEllipsis && strings.HasSuffix(strings.TrimSpace(el.Input), "...") {
-			fmt.Printf(esc + "[37m")
-			fmt.Printf("case %d skipped due to incomplete input.\n", i+1)
-			fmt.Printf(esc + "[0m")
+			color.White("case %d skipped due to incomplete input.\n", i+1)
 			continue
 		}
 		stdout := bytes.Buffer{}
@@ -232,18 +224,15 @@ func main() {
 			}
 		}
 		if !failed {
-			fmt.Printf(esc + "[32m")
-			fmt.Printf("case %d completed successfully. took: %s", i+1, took)
-			fmt.Printf(esc + "[0m")
+			g := color.New(color.FgGreen)
+			g.Printf("case %d completed successfully. took: %s", i+1, took)
 		} else {
-			fmt.Printf(esc + "[4;31m")
-			fmt.Printf("case %d failed. took: %s", i+1, took)
-			fmt.Printf(esc + "[0m")
-			fmt.Printf(esc + "[1;31m")
+			ru := color.New(color.FgRed, color.Underline)
+			ru.Printf("case %d failed. took: %s", i+1, took)
 			if err != nil {
-				fmt.Printf("returned error: %s", err.Error())
+				rb := color.New(color.FgRed, color.Underline)
+				rb.Printf("returned error: %s", err.Error())
 			}
-			fmt.Printf(esc + "[0m")
 		}
 		if len(signals) > 0 {
 			totalTime := end.Sub(start)
@@ -275,9 +264,7 @@ func main() {
 			}
 			fmt.Println(el.String())
 			fmt.Println("output")
-			fmt.Printf(esc + "[31m")
-			fmt.Println(out)
-			fmt.Printf(esc + "[0m")
+			color.Red(out)
 		}
 		if failed && config.ExitOnFailure {
 			return
@@ -286,9 +273,9 @@ func main() {
 }
 
 func (e *Example) String() string {
-	ret := "input\n" + esc + "[35m" + e.Input + esc + "[0m"
+	ret := fmt.Sprintf("input\n%s", color.MagentaString(e.Input))
 	if !e.noOut {
-		ret += "\nexpected\n" + esc + "[34m" + e.Output + esc + "[0m"
+		ret += fmt.Sprintf("\nexpected\n%s", color.BlueString(e.Output))
 	}
 	return ret
 }
