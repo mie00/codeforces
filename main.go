@@ -50,11 +50,6 @@ func main() {
 	}
 	if config.Show {
 		if config.Filename == "" {
-			if fn, ok := file[config.Lang]; ok {
-				config.Filename = fn
-			}
-		}
-		if config.Filename == "" {
 			panic(fmt.Errorf("cannot find filename for lang %s, please provide one", config.Lang))
 		}
 		printFile(config.Filename, config.Name, config.Lang)
