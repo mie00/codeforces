@@ -36,7 +36,7 @@ func getText(in *html.Node) (string, error) {
 }
 
 func nameToUrl(name string) string {
-	return fmt.Sprintf("http://codeforces.com/problemset/problem/%s/%s", name[1:], name[0:1])
+	return fmt.Sprintf("http://codeforces.com/problemset/problem/%s", strings.Replace(name, "-", "/", -1))
 }
 
 func extract(name string) (*Examples, error) {

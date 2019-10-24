@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docopt/docopt-go"
@@ -45,7 +46,7 @@ func normalizeName(name string) (string, error) {
 	var class string
 	var num int
 	var err error
-	if name[len(name)-2] == '/' {
+	if strings.Contains(name, "/") {
 		_, err = fmt.Sscanf(name, "%d/%s", &num, &class)
 	} else {
 		class = name[0:1]
