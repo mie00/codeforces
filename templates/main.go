@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/mie00/codeforces/codeforcesutils"
 )
@@ -20,5 +21,5 @@ func main() {
 	}
 	codeforcesutils.Signal()
 	fmt.Println(n)
-	fmt.Printf(string(in))
+	fmt.Printf(strings.TrimSpace(string(in)))
 }
