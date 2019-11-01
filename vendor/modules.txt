@@ -1,0 +1,13 @@
+# github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
+github.com/docopt/docopt-go
+# github.com/fatih/color v1.7.0
+github.com/fatih/color
+# github.com/mattn/go-colorable v0.1.4
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.10
+github.com/mattn/go-isatty
+# golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271
+golang.org/x/net/html
+golang.org/x/net/html/atom
+# golang.org/x/sys v0.0.0-20191008105621-543471e840be
+golang.org/x/sys/unix
