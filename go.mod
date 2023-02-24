@@ -7,5 +7,5 @@ require (
 	github.com/fatih/color v1.7.0
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
-	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271
+	golang.org/x/net v0.7.0
 )
